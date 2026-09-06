@@ -1,0 +1,58 @@
+# Playground de agentes de IA para informática de la biodiversidad.
+# Dos servicios permanentes + uno bajo demanda:
+#   gbif-tools   servidor de herramientas (contratos que el modelo puede invocar)
+#   open-webui   interfaz de chat con soporte de herramientas
+#   agente       (bajo demanda) bucle de agente mínimo que imprime la traza
+#
+# El modelo de lenguaje corre en un contenedor de Ollama EXTERNO a este compose,
+# escuchando en el puerto 11434 del host. Si aún no tienes uno:
+#   docker run -d --name ollama -p 11434:11434 -v ollama:/root/.ollama \
+#     --restart unless-stopped ollama/ollama:latest
+# Los servicios de abajo lo alcanzan vía host.docker.internal:11434.
+
+services:
+  gbif-tools:
+    build: ./herramientas
+    container_name: gbif-tools
+    ports:
+      - "8030:8000"
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    depends_on: [gbif-tools]
+    ports:
+      - "3000:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # para que funcione también en Linux
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      WEBUI_AUTH: "false"            # sin login: es un playground local de taller
+      ENABLE_OPENAI_API: "false"
+      DEFAULT_MODELS: ${MODELO:-qwen3:4b}
+      # Registra el servidor de herramientas para todos los usuarios.
+      # Ojo: 8000 es el puerto DENTRO de la red de Docker; 8030 es solo el del host.
+      # Si tu versión de Open WebUI ignora esta variable, regístralo a mano
+      # (ver README, sección "Si la herramienta no aparece").
+      TOOL_SERVER_CONNECTIONS: >-
+        [{"url":"http://gbif-tools:8000","path":"openapi.json","auth_type":"none","key":"",
+          "config":{"enable":true,"access_control":null},
+          "info":{"name":"Herramientas GBIF","description":"Nombres y ocurrencias desde GBIF"}}]
+    volumes:
+      - open-webui:/app/backend/data
+    restart: unless-stopped
+
+  agente:
+    build: ./agente
+    profiles: [cli]
+    depends_on: [gbif-tools]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      OLLAMA_URL: http://host.docker.internal:11434
+      HERRAMIENTAS_URL: http://gbif-tools:8000
+      MODELO: ${MODELO:-qwen3:4b}
+
+volumes:
+  open-webui:
