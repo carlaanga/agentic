@@ -23,7 +23,7 @@ Lo único lento es descargar el modelo (2-5 GB). Hazlo en casa o en la oficina, 
 1. Instala **Docker Desktop** (Windows, macOS) o Docker Engine + Compose (Linux):
    <https://docs.docker.com/get-docker/>. En Windows acepta activar WSL 2 si lo pide.
 2. Descarga este repositorio (botón *Code → Download ZIP*, o `git clone`).
-3. Abre una terminal en la carpeta y ejecuta:
+3. Abre una terminal en la carpeta `agentes-biodiversidad/` y ejecuta:
 
    ```bash
    ./scripts/prevuelo.sh          # macOS / Linux
